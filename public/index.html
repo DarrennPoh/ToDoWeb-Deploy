@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -5,164 +6,316 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ToDoWeb</title>
+
     <link rel="stylesheet" href="/fanta.css" />
     <link rel="stylesheet" href="/styles.css" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css"
+
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css"
         integrity="sha512-Kc323vGBEqzTmouAECnVceyQqyqdsSiqLQISBL29aUW4U/M7pSPA/gEUZQqv1cwx4OnYxTxve5UMg5GT6L4JJg=="
-        crossorigin="anonymous" referrerpolicy="no-referrer" />
+        crossorigin="anonymous"
+        referrerpolicy="no-referrer"
+    />
+
     <link rel="icon" type="image/svg+xml" href="/logo.svg" />
 </head>
 
 <body>
+
+    <!-- AUTHENTICATION -->
     <section id="auth">
+
         <div class="brand-row">
             <img class="auth-logo" src="/logo.svg" alt="TodoWeb logo" />
             <span class="brand-wordmark">To Do Web</span>
         </div>
+
         <div>
             <h2>Login</h2>
             <p>Create an account!</p>
         </div>
 
         <p id="error" style="display: none; color: red;"></p>
+
         <input id="emailInput" placeholder="Email" type="email" />
         <input id="passwordInput" placeholder="Password" type="password" />
+
         <button id="authBtn">Submit</button>
+
         <hr />
+
         <div class="register-content">
             <p>Don't have an account?</p>
             <button id="registerBtn">Sign up</button>
         </div>
+
     </section>
-    
+
+
+    <!-- DASHBOARD HEADER -->
     <header style="display: none;">
+
         <h1 class="text-gradient">You have 0 open tasks.</h1>
-        <button id="logoutBtn" class="logout-btn">Logout</button>
+
+        <button id="logoutBtn" class="logout-btn">
+            Logout
+        </button>
+
     </header>
-    
+
+
+    <!-- NAVIGATION TABS -->
     <nav style="display: none;" class="tab-container">
+
         <button class="tab-button selected-tab" data-tab="All">
             <h4>All <span>(0)</span></h4>
         </button>
+
         <button class="tab-button" data-tab="Open">
             <h4>Open <span>(0)</span></h4>
         </button>
+
         <button class="tab-button" data-tab="Complete">
             <h4>Complete <span>(0)</span></h4>
         </button>
+
         <hr />
+
     </nav>
-    
+
+
+    <!-- MAIN DASHBOARD -->
     <main style="display: none;"></main>
 
+
     <script>
-        // State variables
+
+        // ==========================================
+        // STATE VARIABLES
+        // ==========================================
+
         let token = localStorage.getItem('token');
+
         let isLoading = false;
         let isAuthenticating = false;
         let isRegistration = false;
+        let isAddingTodo = false;
+
         let selectedTab = 'All';
         let todos = [];
+
         const apiBase = '/';
 
-        // Get DOM elements
+
+        // ==========================================
+        // DOM ELEMENTS
+        // ==========================================
+
         const nav = document.querySelector('nav');
         const header = document.querySelector('header');
         const main = document.querySelector('main');
+
         const navElements = document.querySelectorAll('.tab-button');
+
         const authContent = document.getElementById('auth');
         const error = document.getElementById('error');
+
         const email = document.getElementById('emailInput');
         const password = document.getElementById('passwordInput');
+
         const registerBtn = document.getElementById('registerBtn');
         const authBtn = document.getElementById('authBtn');
         const logoutBtn = document.getElementById('logoutBtn');
 
+
+        // ==========================================
         // PAGE RENDERING LOGIC
+        // ==========================================
+
         async function showDashboard() {
+
             nav.style.display = 'block';
             header.style.display = 'flex';
             main.style.display = 'flex';
+
             authContent.style.display = 'none';
+
             await fetchTodos();
         }
 
+
         function updateHeaderText() {
-            const todosLength = todos.filter(todo=>!todo.completed).length;
-            const newString = todos.length === 1 ?
-                `You have 1 open task.` :
-                `You have ${todosLength} open tasks.`;
+
+            const openCount = todos.filter(
+                todo => !todo.completed
+            ).length;
+
+            const newString = openCount === 1
+                ? 'You have 1 open task.'
+                : `You have ${openCount} open tasks.`;
+
             header.querySelector('h1').innerText = newString;
         }
 
+
         function updateNavCount() {
+
             navElements.forEach(ele => {
+
                 const btnText = ele.innerText.split(' ')[0];
+
                 const count = todos.filter(val => {
-                    if (btnText === 'All') return true;
-                    return btnText === 'Complete' ? val.completed : !val.completed;
+
+                    if (btnText === 'All') {
+                        return true;
+                    }
+
+                    return btnText === 'Complete'
+                        ? val.completed
+                        : !val.completed;
+
                 }).length;
+
                 ele.querySelector('span').innerText = `(${count})`;
+
             });
         }
 
+
         function changeTab(tab) {
+
             selectedTab = tab;
+
             navElements.forEach(val => {
+
                 if (val.getAttribute('data-tab') === tab) {
                     val.classList.add('selected-tab');
                 } else {
                     val.classList.remove('selected-tab');
                 }
+
             });
+
             renderTodos();
         }
 
+
+        // Escape task text before inserting it into HTML
+        function escapeHTML(value) {
+
+            return String(value).replace(/[&<>"']/g, char => {
+
+                const entities = {
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#39;'
+                };
+
+                return entities[char];
+
+            });
+        }
+
+
         function renderTodos() {
+
             updateNavCount();
             updateHeaderText();
 
             let todoList = '';
-            todos.filter(val => {
-                return selectedTab === 'All' ? true : 
-                    selectedTab === 'Complete' ? val.completed : !val.completed;
-            }).forEach((todo) => {
-                const taskIndex = todo.id;
-                todoList += `
-                <div class="card todo-item ${todo.completed ? 'todo-complete' : ''}">
-                    <p>${todo.task}</p>
-                    <div class="todo-buttons">
-                        <button onclick="updateTodo(${taskIndex})" ${todo.completed ? 'disabled' : ''}>
-                            <h6>Done</h6>
-                        </button>
-                        <button onclick="deleteTodo(${taskIndex})">
-                            <h6>Delete</h6>
-                        </button>
-                    </div>
-                </div>
-                `;
+
+            const filteredTodos = todos.filter(val => {
+
+                return selectedTab === 'All'
+                    ? true
+                    : selectedTab === 'Complete'
+                        ? val.completed
+                        : !val.completed;
+
             });
+
+
+            filteredTodos.forEach(todo => {
+
+                const taskId = Number(todo.id);
+
+                todoList += `
+                    <div class="card todo-item ${todo.completed ? 'todo-complete' : ''}">
+
+                        <p>${escapeHTML(todo.task)}</p>
+
+                        <div class="todo-buttons">
+
+                            <button
+                                onclick="updateTodo(${taskId})"
+                                ${todo.completed ? 'disabled' : ''}
+                            >
+                                <h6>Done</h6>
+                            </button>
+
+                            <button onclick="deleteTodo(${taskId})">
+                                <h6>Delete</h6>
+                            </button>
+
+                        </div>
+
+                    </div>
+                `;
+
+            });
+
+
             todoList += `
-            <div class="input-container">
-                <input id="todoInput" placeholder="Add task" />
-                <button onclick="addTodo()">
-                    <i class="fa-solid fa-plus"></i>
-                </button>
-            </div>
+                <div class="input-container">
+
+                    <input
+                        id="todoInput"
+                        placeholder="Add task"
+                    />
+
+                    <button
+                        id="addTodoBtn"
+                        onclick="addTodo()"
+                        ${isAddingTodo ? 'disabled' : ''}
+                    >
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
+
+                </div>
             `;
+
+
             main.innerHTML = todoList;
         }
 
-        // AUTH LOGIC
+
+        // ==========================================
+        // AUTHENTICATION LOGIC
+        // ==========================================
+
         function toggleIsRegister() {
+
             isRegistration = !isRegistration;
-            registerBtn.innerText = isRegistration ? 'Sign in' : 'Sign up';
-            document.querySelector('#auth > div h2').innerText = isRegistration ? 'Sign Up' : 'Login';
-            document.querySelector('.register-content p').innerText = 
-                isRegistration ? 'Already have an account?' : "Don't have an account?";
+
+            registerBtn.innerText = isRegistration
+                ? 'Sign in'
+                : 'Sign up';
+
+            document.querySelector('#auth > div h2').innerText =
+                isRegistration ? 'Sign Up' : 'Login';
+
+            document.querySelector('.register-content p').innerText =
+                isRegistration
+                    ? 'Already have an account?'
+                    : "Don't have an account?";
         }
 
+
         async function authenticate() {
+
             const emailVal = email.value.trim();
             const passVal = password.value;
 
@@ -170,205 +323,510 @@
                 return;
             }
 
+
             if (!emailVal) {
+
                 error.innerText = 'Please enter an email';
                 error.style.display = 'block';
+
                 return;
             }
+
 
             if (!emailVal.includes('@')) {
+
                 error.innerText = 'Please enter a valid email';
                 error.style.display = 'block';
+
                 return;
             }
+
 
             if (!passVal || passVal.length < 6) {
+
                 error.innerText = 'Password must be at least 6 characters';
                 error.style.display = 'block';
+
                 return;
             }
 
+
             error.style.display = 'none';
+
             isAuthenticating = true;
+
             authBtn.innerText = 'Authenticating...';
             authBtn.disabled = true;
 
+
             try {
-                const endpoint = isRegistration ? 'auth/register' : 'auth/login';
+
+                const endpoint = isRegistration
+                    ? 'auth/register'
+                    : 'auth/login';
+
 
                 const response = await fetch(apiBase + endpoint, {
+
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username: emailVal, password: passVal })
+
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+
+                    body: JSON.stringify({
+                        username: emailVal,
+                        password: passVal
+                    })
+
                 });
+
 
                 const data = await response.json();
 
+                if (!response.ok) {
+                    throw new Error(data.message || 'Authentication failed');
+                }
+
+
                 if (data.token) {
+
                     token = data.token;
+
                     localStorage.setItem('token', token);
+
                     authBtn.innerText = 'Loading...';
+
                     await showDashboard();
+
                 } else {
+
                     throw new Error(data.message || 'Failed to authenticate');
+
                 }
 
             } catch (err) {
+
                 console.error('❌ Auth error:', err);
+
                 error.innerText = err.message;
                 error.style.display = 'block';
+
             } finally {
+
                 authBtn.innerText = 'Submit';
                 authBtn.disabled = false;
+
                 isAuthenticating = false;
+
             }
+
         }
 
+
+        // ==========================================
+        // LOGOUT
+        // ==========================================
+
         function logout() {
+
             localStorage.removeItem('token');
+
             token = null;
+
             todos = [];
+
             selectedTab = 'All';
 
             isLoading = false;
             isAuthenticating = false;
             isRegistration = false;
+            isAddingTodo = false;
+
 
             nav.style.display = 'none';
             header.style.display = 'none';
             main.style.display = 'none';
+
             authContent.style.display = 'block';
+
 
             email.value = '';
             password.value = '';
+
             error.style.display = 'none';
+
             authBtn.disabled = false;
             authBtn.innerText = 'Submit';
+
         }
 
+
+        // ==========================================
         // CRUD LOGIC
+        // ==========================================
+
+
+        // FETCH TODOS
+
         async function fetchTodos() {
+
             isLoading = true;
+
             try {
+
                 const response = await fetch(apiBase + 'todos', {
-                    headers: { 'Authorization': token }
+
+                    headers: {
+                        'Authorization': token
+                    }
+
                 });
+
 
                 if (!response.ok) {
-                    throw new Error('Unauthorized');
+                    throw new Error('Failed to fetch todos');
                 }
+
 
                 const todosData = await response.json();
+
                 todos = todosData;
+
                 renderTodos();
-            } catch(err) {
+
+            } catch (err) {
+
                 console.error('❌ Fetch error:', err);
+
                 logout();
+
             } finally {
+
                 isLoading = false;
+
             }
+
         }
+
+
+        // UPDATE TODO — OPTIMISTIC UI
 
         async function updateTodo(index) {
+
+            const todo = todos.find(val => val.id === index);
+
+            if (!todo || todo.completed) {
+                return;
+            }
+
+
+            // Save original state
+            const previousCompleted = todo.completed;
+
+
+            // Update UI immediately
+            todo.completed = true;
+
+            renderTodos();
+
+
             try {
+
                 const response = await fetch(apiBase + 'todos/' + index, {
+
                     method: 'PUT',
+
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': token
                     },
-                    body: JSON.stringify({ 
-                        task: todos.find(val => val.id === index).task, 
-                        completed: 1 
+
+                    body: JSON.stringify({
+
+                        task: todo.task,
+                        completed: 1
+
                     })
+
                 });
-                if (!response.ok) throw new Error('Failed to update todo');
-                fetchTodos();
+
+
+                if (!response.ok) {
+                    throw new Error('Failed to update todo');
+                }
+
+
             } catch (err) {
+
                 console.error('❌ Update error:', err);
+
+
+                // Restore previous state
+                todo.completed = previousCompleted;
+
+                renderTodos();
+
                 alert('Could not update todo. Please try again.');
+
             }
+
         }
+
+
+        // DELETE TODO — OPTIMISTIC UI
 
         async function deleteTodo(index) {
-            try {
-                const response = await fetch(apiBase + 'todos/' + index, {
-                    method: 'DELETE',
-                    headers: { 'Authorization': token }
-                });
-                if (!response.ok) throw new Error('Failed to delete todo');
-                fetchTodos();
-            } catch (err) {
-                console.error('❌ Delete error:', err);
-                alert('Could not delete todo. Please try again.');
+
+            const todoIndex = todos.findIndex(
+                val => val.id === index
+            );
+
+            if (todoIndex === -1) {
+                return;
             }
+
+
+            // Save deleted todo and its position
+            const deletedTodo = todos[todoIndex];
+
+
+            // Remove from UI immediately
+            todos.splice(todoIndex, 1);
+
+            renderTodos();
+
+
+            try {
+
+                const response = await fetch(apiBase + 'todos/' + index, {
+
+                    method: 'DELETE',
+
+                    headers: {
+                        'Authorization': token
+                    }
+
+                });
+
+
+                if (!response.ok) {
+                    throw new Error('Failed to delete todo');
+                }
+
+
+            } catch (err) {
+
+                console.error('❌ Delete error:', err);
+
+
+                // Restore deleted todo
+                todos.splice(todoIndex, 0, deletedTodo);
+
+                renderTodos();
+
+                alert('Could not delete todo. Please try again.');
+
+            }
+
         }
 
+
+        // ADD TODO — OPTIMISTIC UI
+
         async function addTodo() {
+
+            if (isAddingTodo) {
+                return;
+            }
+
+
             const todoInput = document.getElementById('todoInput');
+
             const task = todoInput.value.trim();
-            if (!task) return;
+
+            if (!task) {
+                return;
+            }
+
+
+            isAddingTodo = true;
+
+
+            // Create temporary todo with a numeric ID
+            const temporaryId = -Date.now();
+
+            const temporaryTodo = {
+
+                id: temporaryId,
+                task: task,
+                completed: false
+
+            };
+
+
+            // Display immediately
+            todos.push(temporaryTodo);
+
+            renderTodos();
+
 
             try {
+
                 const response = await fetch(apiBase + 'todos', {
+
                     method: 'POST',
+
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': token
                     },
-                    body: JSON.stringify({ task })
+
+                    body: JSON.stringify({
+                        task: task
+                    })
+
                 });
-                if (!response.ok) throw new Error('Failed to add todo');
-                await fetchTodos();
-                document.getElementById('todoInput')?.focus();
+
+
+                if (!response.ok) {
+                    throw new Error('Failed to add todo');
+                }
+
+
+                // Fetch actual database IDs from server
+                const todosData = await fetch(apiBase + 'todos', {
+
+                    headers: {
+                        'Authorization': token
+                    }
+
+                });
+
+
+                if (!todosData.ok) {
+                    throw new Error('Failed to refresh todos');
+                }
+
+
+                todos = await todosData.json();
+
+                renderTodos();
+
+
             } catch (err) {
+
                 console.error('❌ Add error:', err);
+
+
+                // Remove temporary todo if saving fails
+                todos = todos.filter(
+                    todo => todo.id !== temporaryId
+                );
+
+                renderTodos();
+
                 alert('Could not add todo. Please try again.');
+
+
+            } finally {
+
+                isAddingTodo = false;
+
+                const currentButton = document.getElementById('addTodoBtn');
+
+                if (currentButton) {
+                    currentButton.disabled = false;
+                }
+
+                document.getElementById('todoInput')?.focus();
+
             }
+
         }
 
-        // Event Listeners
+
+        // ==========================================
+        // EVENT LISTENERS
+        // ==========================================
+
         authBtn.addEventListener('click', authenticate);
+
         registerBtn.addEventListener('click', toggleIsRegister);
+
         logoutBtn.addEventListener('click', logout);
 
+
         navElements.forEach(btn => {
+
             btn.addEventListener('click', () => {
+
                 changeTab(btn.getAttribute('data-tab'));
+
             });
+
         });
 
-        password.addEventListener('keypress', (e) => {
+
+        password.addEventListener('keypress', e => {
+
             if (e.key === 'Enter') {
                 authenticate();
             }
+
         });
 
-        email.addEventListener('keypress', (e) => {
+
+        email.addEventListener('keypress', e => {
+
             if (e.key === 'Enter') {
                 authenticate();
             }
+
         });
 
-        main.addEventListener('keypress', (e) => {
-            if (e.target.id === 'todoInput' && e.key === 'Enter') {
+
+        main.addEventListener('keypress', e => {
+
+            if (
+                e.target.id === 'todoInput' &&
+                e.key === 'Enter'
+            ) {
+
                 addTodo();
+
             }
+
         });
 
-        // INITIAL LOAD
-        if (token) {
-            (async function() {
-                try {
-                    await showDashboard();
-                } catch(err) {
-                    console.error('Auto-login failed:', err);
-                    localStorage.removeItem('token');
-                    token = null;
-                }
-            })();
-        }
-    </script>
-</body>
 
+        // ==========================================
+        // INITIAL LOAD
+        // ==========================================
+
+        if (token) {
+
+            (async function() {
+
+                try {
+
+                    await showDashboard();
+
+                } catch (err) {
+
+                    console.error('Auto-login failed:', err);
+
+                    localStorage.removeItem('token');
+
+                    token = null;
+
+                }
+
+            })();
+
+        }
+
+    </script>
+
+</body>
 </html>
