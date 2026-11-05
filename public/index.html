@@ -694,22 +694,13 @@
                 }
 
 
-                // Fetch actual database IDs from server
-                const todosData = await fetch(apiBase + 'todos', {
+                // Get the newly created todo with its real database ID
+                const createdTodo = await response.json();
 
-                    headers: {
-                        'Authorization': token
-                    }
-
-                });
-
-
-                if (!todosData.ok) {
-                    throw new Error('Failed to refresh todos');
-                }
-
-
-                todos = await todosData.json();
+                // Replace the temporary todo with the actual database record
+                todos = todos.map(todo =>
+                todo.id === temporaryId ? createdTodo : todo
+                );
 
                 renderTodos();
 

@@ -32,7 +32,7 @@ router.post('/', async (req, res) => {
         const todo = await prisma.todo.create({
             data: { task, userId: req.userId }
         })
-        res.json(todo)
+        res.status(201).json(todo)
     } catch (err) {
         console.error(err.message)
         res.status(500).json({ message: "Failed to create todo" })
