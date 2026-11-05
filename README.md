@@ -1,4 +1,4 @@
-# 📝 TodoWeb — Full-Stack Todo Application
+# 📝 TodoWeb — DEPLOYED 
 
 A modern, containerized todo application built with **Docker, Express, Prisma ORM, and PostgreSQL**.
 
