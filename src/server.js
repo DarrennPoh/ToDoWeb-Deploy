@@ -16,10 +16,8 @@ const __dirname = dirname(__filename)
 // 3. Middleware
 app.use(express.json())
 
-// Serve static files locally
-if (process.env.VERCEL !== '1') {
-    app.use(express.static(path.join(__dirname, '../public')))
-}
+// Serve frontend static files
+app.use(express.static(path.join(__dirname, '../public')))
 
 // 4. Routes
 app.use('/auth', authRoutes)
