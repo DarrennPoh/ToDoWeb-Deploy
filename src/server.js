@@ -23,6 +23,11 @@ app.use(express.static(path.join(__dirname, '../public')))
 app.use('/auth', authRoutes)
 app.use('/todos', authMiddleware, todoRoutes)
 
+// Serve homepage
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/index.html'))
+})
+
 // 5. Health check
 app.get('/health', (req, res) => {
     res.status(200).json({ status: 'ok' })
